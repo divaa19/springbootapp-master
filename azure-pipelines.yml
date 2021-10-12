@@ -67,6 +67,8 @@ stages:
 
 - stage: Deploy
   displayName: Deploy stage
+  variables: 
+    acrsecret: aksauthr
   jobs:
     - job: Deploy
       displayName: Deploy
