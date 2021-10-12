@@ -2,7 +2,7 @@ variables:
   sonarprojectKey: 'learning-spring'
   jdkversion: '1.11'
   artifactname: 'springbootapp'
-  acrname: 'devopsDemo87'
-  acrrepo: 'devopsdemo87'
+  acrname: 'devopsDemo85'
+  acrrepo: 'devopsdemo85'
   tag: '$(Build.BuildId)'
 
