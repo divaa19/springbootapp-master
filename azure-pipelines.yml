@@ -1,0 +1,101 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+  - master
+
+variables:
+  - template: parameters.yml
+
+
+stages:
+- stage: Build
+  displayName: Build stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+
+    - task: SonarCloudPrepare@1
+      inputs:
+        SonarCloud: 'sonarConnection'
+        organization: 'app-org-scanner'
+        scannerMode: 'Other'
+        extraProperties:
+          sonar.projectKey=${{ variables.sonarprojectKey }}
+
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: ${{ variables.jdkversion }}
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: true
+        sqMavenPluginVersionChoice: 'latest'
+        goals: 'package'
+
+    - task: SonarCloudPublish@1
+      inputs:
+        pollingTimeoutSec: '300'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)'
+        artifact: ${{ variables.artifactname }}
+        publishLocation: 'pipeline'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/kubernetes'
+        artifact: 'manifests'
+        publishLocation: 'pipeline'
+
+    - task: Docker@2
+      inputs:
+        containerRegistry: ${{ variables.acrname }}
+        repository: ${{ variables.acrrepo }}
+        command: 'buildAndPush'
+        Dockerfile: '**/Dockerfile'
+
+- stage: Deploy
+  displayName: Deploy stage
+  jobs:
+    - job: Deploy
+      displayName: Deploy
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          buildType: 'current'
+          artifactName: 'manifests'
+          targetPath: '$(Pipeline.Workspace)/manifests'
+
+      - task: KubernetesManifest@0
+        inputs:
+              action: 'createSecret'
+              namespace: 'default'
+              kubernetesServiceConnection: 'kube-connection'
+              secretType: 'dockerRegistry'
+              secretName: '$(acrsecret)'
+              dockerRegistryEndpoint: 'devopsDemo87'
+
+      - task: KubernetesManifest@0
+        inputs:
+          action: 'deploy'
+          kubernetesServiceConnection: 'kube-connection'
+          namespace: 'default'
+          manifests: |
+            $(Pipeline.Workspace)/manifests/deployment.yml
+            $(Pipeline.Workspace)/manifests/service.yml
+          containers: 'devopsdemo87.azurecr.io/${{ variables.acrrepo }}:${{ variables.tag }}'
+
+

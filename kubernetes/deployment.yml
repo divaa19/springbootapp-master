@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: devopsdemo87
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devopsdemo87
+  template:
+    metadata:
+      labels:
+        app: devopsdemo87
+    spec:
+      containers:
+        - name: devopsdemo87
+          image: devopsdemo87.azurecr.io/devopsdemo87
+          ports:
+          - containerPort: 8080
